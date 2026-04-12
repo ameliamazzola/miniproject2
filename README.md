@@ -11,7 +11,7 @@ Use the UA-DETRAC dataset to:
   - Traffic flow over time (vehicles passing through)
 
 ---
-
+```
 ## Project Structure
 miniproject2/
 │
@@ -30,3 +30,10 @@ miniproject2/
 ├── outputs/
 │ ├── plots/
 │ └── videos/
+```
+## Setup (Google Colab)
+
+```python
+!git clone https://github.com/ameliamazzola/miniproject2.git
+%cd miniproject2
+!pip install -r requirements.txt
