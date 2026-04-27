@@ -1,0 +1,9 @@
+names:
+- car
+- bus
+- van
+- others
+nc: 4
+path: C:\Users\ameli\OneDrive\Desktop\miniproject2\yolo_dataset
+train: images/train
+val: images/val
