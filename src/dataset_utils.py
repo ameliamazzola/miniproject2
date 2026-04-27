@@ -175,8 +175,12 @@ def convert_to_yolo_format(sequences, output_dir, split="train"):
                     lines.append(f"{cls_id} {cx:.6f} {cy:.6f} {nw:.6f} {nh:.6f}")
 
             if lines:
-                shutil.copy(img_path, images_out / img_path.name)
-                label_path = labels_out / img_path.with_suffix(".txt").name
+                sequence_name = Path(img_dir).name
+                new_img_name = f"{sequence_name}_{img_path.name}"
+                new_label_name = f"{sequence_name}_{img_path.stem}.txt"
+
+                shutil.copy(img_path, images_out / new_img_name)
+                label_path = labels_out / new_label_name
                 label_path.write_text("\n".join(lines))
 
 
