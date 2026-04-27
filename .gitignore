@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (DO NOT UPLOAD DATASET)
+data/
+data/*.zip
+
+data/
+yolo_dataset/images/
+
+# Large files
+*.mp4
+*.pt
+*.pth
+!model/model.pt
+
+# Environments
+.env
+*.env
+venv/
+.venv/
+
+# VS Code
+.vscode/
+
+# Colab temp
+/content/
