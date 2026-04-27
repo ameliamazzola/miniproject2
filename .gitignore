@@ -9,6 +9,9 @@ __pycache__/
 data/
 data/*.zip
 
+data/
+yolo_dataset/images/
+
 # Large files
 *.mp4
 *.pt
