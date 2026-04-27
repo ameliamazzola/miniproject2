@@ -7,12 +7,22 @@ __pycache__/
 
 # Data (DO NOT UPLOAD DATASET)
 data/
-*.zip
+data/*.zip
 
 # Large files
 *.mp4
 *.pt
 *.pth
+!model/model.pt
+
+# Environments
+.env
+*.env
+venv/
+.venv/
+
+# VS Code
+.vscode/
 
 # Colab temp
 /content/
