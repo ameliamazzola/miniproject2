@@ -110,91 +110,111 @@ def build_sequences(data_root):
     return sequences
 
 
-# ─────────────────────────────────────────
-# YOLO format conversion (for Ultralytics)
-# ─────────────────────────────────────────
+import random
+import shutil
+from pathlib import Path
+import xml.etree.ElementTree as ET
+import cv2
+import yaml
 
-def convert_to_yolo_format(sequences, output_dir, split="train"):
-    """
-    Converts UA-DETRAC XML annotations into YOLO txt format.
+VEHICLE_CLASSES = {
+    "car": 0,
+    "bus": 1,
+    "van": 2,
+    "others": 3
+}
 
-    Output structure:
-        output_dir/
-            images/train/   images/val/
-            labels/train/   labels/val/
+def build_yolo_dataset(all_sequences, output_dir):
+    output_dir = Path(output_dir)
 
-    YOLO label format per line: class cx cy w h (all normalized 0-1)
-    """
-    images_out = Path(output_dir) / "images" / split
-    labels_out = Path(output_dir) / "labels" / split
-    images_out.mkdir(parents=True, exist_ok=True)
-    labels_out.mkdir(parents=True, exist_ok=True)
+    # 🔴 DELETE OLD DATA (IMPORTANT)
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
 
-    for xml_file, img_dir in sequences:
-        tree = ET.parse(xml_file)
-        root = tree.getroot()
+    (output_dir / "images/train").mkdir(parents=True)
+    (output_dir / "images/val").mkdir(parents=True)
+    (output_dir / "labels/train").mkdir(parents=True)
+    (output_dir / "labels/val").mkdir(parents=True)
 
-        for frame in root.findall(".//frame"):
-            fid = int(frame.get("num"))
-            img_path = Path(img_dir) / f"img{fid:05d}.jpg"
-            if not img_path.exists():
-                continue
+    # 🔀 80/20 split
+    random.seed(42)
+    random.shuffle(all_sequences)
+    split_idx = int(0.8 * len(all_sequences))
 
-            img = cv2.imread(str(img_path))
-            if img is None:
-                continue
-            img_h, img_w = img.shape[:2]
+    splits = {
+        "train": all_sequences[:split_idx],
+        "val": all_sequences[split_idx:]
+    }
 
-            lines = []
-            target_list = frame.find("target_list")
-            if target_list is not None:
-                for target in target_list.findall("target"):
-                    box = target.find("box")
-                    attr = target.find("attribute")
-                    if box is None:
-                        continue
+    for split, sequences in splits.items():
+        for xml_file, img_dir in sequences:
 
-                    x = float(box.get("left"))
-                    y = float(box.get("top"))
-                    w = float(box.get("width"))
-                    h = float(box.get("height"))
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
 
-                    # normalize to 0-1 and convert to center format
-                    cx = (x + w / 2) / img_w
-                    cy = (y + h / 2) / img_h
-                    nw = w / img_w
-                    nh = h / img_h
+            for frame in root.findall(".//frame"):
+                fid = int(frame.get("num"))
+                img_path = Path(img_dir) / f"img{fid:05d}.jpg"
 
-                    vtype = "others"
-                    if attr is not None:
-                        vtype = attr.get("vehicle_type", "others").lower()
-                        if vtype not in VEHICLE_CLASSES:
-                            vtype = "others"
+                if not img_path.exists():
+                    continue
 
-                    cls_id = VEHICLE_CLASSES[vtype]
-                    lines.append(f"{cls_id} {cx:.6f} {cy:.6f} {nw:.6f} {nh:.6f}")
+                img = cv2.imread(str(img_path))
+                if img is None:
+                    continue
 
-            if lines:
-                sequence_name = Path(img_dir).name
-                new_img_name = f"{sequence_name}_{img_path.name}"
-                new_label_name = f"{sequence_name}_{img_path.stem}.txt"
+                img_h, img_w = img.shape[:2]
 
-                shutil.copy(img_path, images_out / new_img_name)
-                label_path = labels_out / new_label_name
-                label_path.write_text("\n".join(lines))
+                lines = []
+                target_list = frame.find("target_list")
 
+                if target_list is not None:
+                    for target in target_list.findall("target"):
+                        box = target.find("box")
+                        attr = target.find("attribute")
 
-def write_yaml(output_dir, yaml_path):
-    """
-    Writes the dataset config YAML that Ultralytics needs for training.
-    """
+                        if box is None:
+                            continue
+
+                        x = float(box.get("left"))
+                        y = float(box.get("top"))
+                        w = float(box.get("width"))
+                        h = float(box.get("height"))
+
+                        cx = (x + w / 2) / img_w
+                        cy = (y + h / 2) / img_h
+                        nw = w / img_w
+                        nh = h / img_h
+
+                        vtype = "others"
+                        if attr is not None:
+                            vtype = attr.get("vehicle_type", "others").lower()
+                            if vtype not in VEHICLE_CLASSES:
+                                vtype = "others"
+
+                        cls_id = VEHICLE_CLASSES[vtype]
+                        lines.append(f"{cls_id} {cx:.6f} {cy:.6f} {nw:.6f} {nh:.6f}")
+
+                if lines:
+                    seq_name = Path(img_dir).name
+
+                    new_img = f"{seq_name}_{img_path.name}"
+                    new_lbl = f"{seq_name}_{img_path.stem}.txt"
+
+                    shutil.copy(img_path, output_dir / f"images/{split}/{new_img}")
+                    (output_dir / f"labels/{split}/{new_lbl}").write_text("\n".join(lines))
+
+    # 🧾 Write YAML
+    yaml_path = output_dir / "data.yaml"
     config = {
-        "path": str(Path(output_dir).resolve()),
+        "path": str(output_dir.resolve()),
         "train": "images/train",
         "val": "images/val",
         "nc": 4,
         "names": ["car", "bus", "van", "others"]
     }
+
     with open(yaml_path, "w") as f:
-        yaml.dump(config, f, default_flow_style=False)
-    print(f"YAML written to {yaml_path}")
+        yaml.dump(config, f)
+
+    print("Dataset built at:", output_dir)
