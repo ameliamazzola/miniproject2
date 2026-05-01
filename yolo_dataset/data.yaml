@@ -1,0 +1,9 @@
+path: /content/miniproject2/yolo_dataset
+train: images/train
+val: images/val
+
+names:
+  0: car
+  1: bus
+  2: van
+  3: others
